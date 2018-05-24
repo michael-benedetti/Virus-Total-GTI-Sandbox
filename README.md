@@ -1,0 +1,1 @@
+A "poor man's" global threat intelligence/sandboxing solution.  Simply add a Virus Total API key, modify directories to check file integrity, and execute.  Unscanned files will be submiited to VirusTotal for scan - requires local pickle database.
