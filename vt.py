@@ -4,6 +4,7 @@ import os
 import time
 import pickle
 import ntpath
+import sys
 
 def md5(fname):
     hash_md5 = hashlib.md5()
@@ -19,13 +20,14 @@ def check_quota(n):
         i = 0
     return i + 1
 
-apikey = '<<<INSERT API KEY HERE>>>'
+apikey = '' #Enter API Key Here
 url = 'https://www.virustotal.com/vtapi/v2/file/report'
-directories = ["/usr/bin", "/usr/sbin", "/usr/local/bin"]
-directories.append(input("enter additional directory to scan...\n"))
+directories = ["/tmp", "/bin", "/sbin", "/usr/bin", "/usr/sbin", "/usr/local/bin"]
+#directories.append(input("enter additional directory to scan...\n"))
 params = {'apikey': apikey, 'resource': ''}
 tab_buf = 30
 
+n = 0
 i = 0
 with open('db.pkl', 'rb') as pkl_file:
     db = pickle.load(pkl_file)
@@ -33,7 +35,10 @@ with open('db.pkl', 'rb') as pkl_file:
       for directory in directories:
         for file in os.listdir(directory):
             file_path = os.path.join(directory, file)
-            if not os.path.isdir(file_path):
+            if not os.path.isdir(file_path) and file != "spotify":
+                n += 1
+                sys.stdout.write("Files scanned: {0}   \r".format(n))
+                sys.stdout.flush()
                 file_md5 = md5(file_path)
                 if file_path not in db or (file_path in db and file_md5 != db[file_path]['md5']):
                     params['resource'] = file_md5
@@ -58,5 +63,9 @@ with open('db.pkl', 'rb') as pkl_file:
 
 with open('db.pkl', 'wb') as pkl_file:
     pickle.dump(db, pkl_file)
+print("\n\033[92mFiles with detections:")
+for item in db:
+    if db[item]['positives'] > 0:
+        print("\033[91m{0}: {1}\033[0m".format(item, db[item]['positives']))
 
-print("Done")
+print("Finished with \033[92m{0}\033[0m files scanned".format(n))
