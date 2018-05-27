@@ -20,10 +20,9 @@ def check_quota(n):
         i = 0
     return i + 1
 
-apikey = '' #Enter API Key Here
+apikey = '' #Enter API key here
 url = 'https://www.virustotal.com/vtapi/v2/file/report'
 directories = ["/tmp", "/bin", "/sbin", "/usr/bin", "/usr/sbin", "/usr/local/bin"]
-#directories.append(input("enter additional directory to scan...\n"))
 params = {'apikey': apikey, 'resource': ''}
 tab_buf = 30
 
@@ -33,31 +32,35 @@ with open('db.pkl', 'rb') as pkl_file:
     db = pickle.load(pkl_file)
     try:
       for directory in directories:
-        for file in os.listdir(directory):
-            file_path = os.path.join(directory, file)
-            if not os.path.isdir(file_path) and file != "spotify":
-                n += 1
-                sys.stdout.write("Files scanned: {0}   \r".format(n))
-                sys.stdout.flush()
-                file_md5 = md5(file_path)
-                if file_path not in db or (file_path in db and file_md5 != db[file_path]['md5']):
-                    params['resource'] = file_md5
-                    i = check_quota(i)
-                    response = requests.get(url, params=params)
-                    if 'positives' in response.json():
-                        if response.json()['positives'] > 0:
-                            positives = "\033[91m" + str(response.json()['positives']) + "\033[0m"
-                        else:
-                            positives = "\033[93m" + str(response.json()['positives']) + "\033[0m"
-                        print("File name: {0}{1}||  Positives: {2}".format(file, " "*(tab_buf-len(file)), positives))
-                        positives = response.json()['positives']
-                        scanned = True
-                        db[file_path] = {'md5':file_md5, 'positives':positives, 'scanned':scanned}
-                    else:
-                        files = {'file': (file, open(file_path, 'rb'))}
+        for root, subdirs, files in os.walk(directory):
+            for file in files:
+                file_path = os.path.join(root, file)
+                if file != "spotify":
+                    sys.stdout.write("Files scanned: {0}   \r".format(n))
+                    sys.stdout.flush()
+                    try:
+                        file_md5 = md5(file_path)
+                    except:
+                        continue
+                    if file_path not in db or (file_path in db and file_md5 != db[file_path]['md5']):
+                        params['resource'] = file_md5
                         i = check_quota(i)
-                        response = requests.post('https://www.virustotal.com/vtapi/v2/file/scan', files=files, params={'apikey': apikey})
-                        print("File name: {0}{1}||  Submitted for Scan".format(file, " "*(tab_buf-len(file))))
+                        response = requests.get(url, params=params)
+                        if 'positives' in response.json():
+                            if response.json()['positives'] > 0:
+                                positives = "\033[91m" + str(response.json()['positives']) + "\033[0m"
+                            else:
+                                positives = "\033[93m" + str(response.json()['positives']) + "\033[0m"
+                            print("File name: {0}{1}||  Positives: {2}".format(file, " "*(tab_buf-len(file)), positives))
+                            positives = response.json()['positives']
+                            scanned = True
+                            db[file_path] = {'md5':file_md5, 'positives':positives, 'scanned':scanned}
+                        else:
+                            submit_files = {'file': (file, open(file_path, 'rb'))}
+                            i = check_quota(i)
+                            response = requests.post('https://www.virustotal.com/vtapi/v2/file/scan', files=submit_files, params={'apikey': apikey})
+                            print("File name: {0}{1}||  Submitted for Scan".format(file, " "*(tab_buf-len(file))))
+                    n += 1
     except KeyboardInterrupt:
         print("Keyboard Interrupt! Saving Database and exiting...")
 
