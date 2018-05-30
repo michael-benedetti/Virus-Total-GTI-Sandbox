@@ -20,7 +20,18 @@ def check_quota(n):
         i = 0
     return i + 1
 
-apikey = '' #Enter API key here
+def vt_api_post(request_type="report", file=None, resource=None):
+    if request_type == "report":
+        url = 'https://www.virustotal.com/vtapi/v2/file/report'
+        params = { 'apikey': apikey, 'resource': resource }
+        return requests.post(url, params)
+    elif request_type == "scan":
+        url = 'https://www.virustotal.com/vtapi/v2/file/scan'
+        params = { 'apikey': apikey }
+        submit_files = {'file': (ntpath.basename(file), open(file, 'rb'))}
+        return requests.post(url, files=submit_files, params=params)
+
+apikey = '' #Enter API Key Here
 url = 'https://www.virustotal.com/vtapi/v2/file/report'
 directories = ["/tmp", "/bin", "/sbin", "/usr/bin", "/usr/sbin", "/usr/local/bin"]
 params = {'apikey': apikey, 'resource': ''}
@@ -28,6 +39,10 @@ tab_buf = 30
 
 n = 0
 i = 0
+if not os.path.exists('db.pkl'):
+    with open('db.pkl', 'wb') as pkl_file:
+        empty_pkl = { '_init_pkl': { 'resource': 0, 'positives': 0 }}
+        pickle.dump(empty_pkl, pkl_file)
 with open('db.pkl', 'rb') as pkl_file:
     db = pickle.load(pkl_file)
     try:
@@ -43,9 +58,8 @@ with open('db.pkl', 'rb') as pkl_file:
                     except:
                         continue
                     if file_path not in db or (file_path in db and file_md5 != db[file_path]['md5']):
-                        params['resource'] = file_md5
                         i = check_quota(i)
-                        response = requests.get(url, params=params)
+                        response = vt_api_post(resource=file_md5)
                         if 'positives' in response.json():
                             if response.json()['positives'] > 0:
                                 positives = "\033[91m" + str(response.json()['positives']) + "\033[0m"
@@ -56,9 +70,8 @@ with open('db.pkl', 'rb') as pkl_file:
                             scanned = True
                             db[file_path] = {'md5':file_md5, 'positives':positives, 'scanned':scanned}
                         else:
-                            submit_files = {'file': (file, open(file_path, 'rb'))}
                             i = check_quota(i)
-                            response = requests.post('https://www.virustotal.com/vtapi/v2/file/scan', files=submit_files, params={'apikey': apikey})
+                            response = vt_api_post(request_type="scan", file=file_path)
                             print("File name: {0}{1}||  Submitted for Scan".format(file, " "*(tab_buf-len(file))))
                     n += 1
     except KeyboardInterrupt:
