@@ -68,28 +68,15 @@ if __name__ == "__main__":
                               file_md5 = md5(file_path)
                           except:
                               continue
-<<<<<<< HEAD
                           #Check pickle database for file - if hash matches and file has been scanned in last 30 days, do nothing, else submit hash for VT lookup
                           if file_path not in db or (file_path in db and file_md5 != db[file_path]['md5']):
                               response, i = vt_api_post(resource=file_md5, cur_request=i)
-=======
-                          #Check pickle database for file - if hash matches, do nothing, else submit hash for VT lookup
-                          if file_path not in db or (file_path in db and file_md5 != db[file_path]['md5']):
-                              i = check_quota(i)
-                              response = vt_api_post(resource=file_md5)
->>>>>>> 7b5eb13b7c1229d2303005e5f44e0e159470a80e
                               #If GET response comes back with 'positives' object, update database with data
                               if 'positives' in response.json():
                                   scan_date = datetime.strptime(response.json()['scan_date'], '%Y-%m-%d %H:%M:%S')
                                   time_diff = datetime.now() - scan_date
                                   if time_diff.days >= 30:
-<<<<<<< HEAD
                                       response, i = vt_api_post(request_type="scan", file=file_path, cur_request=i)
-=======
-                                      i = check_quota(i)
-                                      response = vt_api_post(request_type="scan", file=file_path)
-                                      print("File name: {0}{1}||  Submitted for Scan - Last scan >= 30 days old".format(file, " "*(tab_buf-len(file))))
->>>>>>> 7b5eb13b7c1229d2303005e5f44e0e159470a80e
                                   else:
                                       if response.json()['positives'] > 0:
                                           positives = "\033[91m" + str(response.json()['positives']) + "\033[0m"
@@ -100,23 +87,11 @@ if __name__ == "__main__":
                                       db[file_path] = {'md5':file_md5, 'positives':positives, 'scan_date':scan_date}
                               #If no 'positives' object in GET response, submit file for scan
                               else:
-<<<<<<< HEAD
                                   response, i = vt_api_post(request_type="scan", file=file_path, cur_request=i)
                           elif file_path in db and (datetime.now() - db[file_path]['scan_date']).days >= 30:
                               response, i = vt_api_post(request_type="scan", file=file_path, cur_request=i)
                           n += 1
         #Handle KeyboardInterrupt to ensure progress is saved to pickle database
-=======
-                                  i = check_quota(i)
-                                  response = vt_api_post(request_type="scan", file=file_path)
-                                  print("File name: {0}{1}||  Submitted for Scan".format(file, " "*(tab_buf-len(file))))
-                          elif file_path in db and (datetime.now() - db[file_path]['scan_date']).days >= 30:
-                              i = check_quota(i)
-                              response = vt_api_post(request_type="scan", file=file_path)
-                              print("File name: {0}{1}||  Re-Submited for Scan - Last scan >= 30 days old".format(file, " "*(tab_buf-len(file))))
-                          n += 1
-        #Graceful shutdown on KeyboardInterrupt
->>>>>>> 7b5eb13b7c1229d2303005e5f44e0e159470a80e
         except KeyboardInterrupt:
             print("Keyboard Interrupt! Saving Database and exiting...")
 
