@@ -37,7 +37,7 @@ def vt_api_post(request_type="report", file=None, resource=None, cur_request=0):
         url = 'https://www.virustotal.com/vtapi/v2/file/scan'
         params = { 'apikey': apikey }
         submit_files = {'file': (ntpath.basename(file), open(file, 'rb'))}
-        print("File name: {0}{1}||  Submitted for Scan".format(file, " "*(tab_buf-len(file))))
+        print("File name: {0}{1}||  Submitted for Scan".format(ntpath.basename(file), " "*(tab_buf-len(ntpath.basename(file)))))
         return requests.post(url, files=submit_files, params=params), i
 
 if __name__ == "__main__":
@@ -90,6 +90,7 @@ if __name__ == "__main__":
                                   response, i = vt_api_post(request_type="scan", file=file_path, cur_request=i)
                           elif file_path in db and (datetime.now() - db[file_path]['scan_date']).days >= 30:
                               response, i = vt_api_post(request_type="scan", file=file_path, cur_request=i)
+                              del(db[file_path])
                           n += 1
         #Handle KeyboardInterrupt to ensure progress is saved to pickle database
         except KeyboardInterrupt:
