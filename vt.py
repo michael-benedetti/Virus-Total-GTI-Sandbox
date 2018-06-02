@@ -45,6 +45,7 @@ if __name__ == "__main__":
     directories = ["/tmp", "/bin", "/sbin", "/usr/bin", "/usr/sbin", "/usr/local/bin"]
     tab_buf = 30
     n = i = 0
+    badfiles = ['spotify'] #Some files don't submit correctly to VirusTotal - include here to skip submission
 
     #Check for existance of db.pkl and create if non-existant
     if not os.path.exists('db.pkl'):
@@ -59,39 +60,41 @@ if __name__ == "__main__":
           #Recursively iterate through directories list
           for directory in directories:
               for root, subdirs, files in os.walk(directory):
-                  for file in files:
+                  for file in [file for file in files if file not in badfiles]: #Filter out spotify for now as it will not submit successfully
                       file_path = os.path.join(root, file)
-                      if file != "spotify":  #For some reason spotify never gets assigned a reputation - skipping until resolved
-                          sys.stdout.write("Files scanned: {0}   \r".format(n))
-                          sys.stdout.flush()
-                          try:
-                              file_md5 = md5(file_path)
-                          except:
-                              continue
-                          #Check pickle database for file - if hash matches and file has been scanned in last 30 days, do nothing, else submit hash for VT lookup
-                          if file_path not in db or (file_path in db and file_md5 != db[file_path]['md5']):
-                              response, i = vt_api_post(resource=file_md5, cur_request=i)
-                              #If GET response comes back with 'positives' object, update database with data
-                              if 'positives' in response.json():
-                                  scan_date = datetime.strptime(response.json()['scan_date'], '%Y-%m-%d %H:%M:%S')
-                                  time_diff = datetime.now() - scan_date
-                                  if time_diff.days >= 30:
-                                      response, i = vt_api_post(request_type="scan", file=file_path, cur_request=i)
-                                  else:
-                                      if response.json()['positives'] > 0:
-                                          positives = "\033[91m" + str(response.json()['positives']) + "\033[0m"
-                                      else:
-                                          positives = "\033[93m" + str(response.json()['positives']) + "\033[0m"
-                                      print("File name: {0}{1}||  Positives: {2}".format(file, " "*(tab_buf-len(file)), positives))
-                                      positives = response.json()['positives']
-                                      db[file_path] = {'md5':file_md5, 'positives':positives, 'scan_date':scan_date}
-                              #If no 'positives' object in GET response, submit file for scan
-                              else:
+                      sys.stdout.write("Files scanned: {0}   \r".format(n))
+                      sys.stdout.flush()
+                      try:
+                          file_md5 = md5(file_path)
+                      except:
+                          continue
+                      #Check pickle database for file - if hash matches and file has been scanned in last 30 days, do nothing, else submit hash for VT lookup
+                      if file_path not in db or (file_path in db and file_md5 != db[file_path]['md5']):
+                          response, i = vt_api_post(resource=file_md5, cur_request=i)
+                          #If GET response comes back with 'positives' object, update database with data
+                          if 'positives' in response.json():
+                              scan_date = datetime.strptime(response.json()['scan_date'], '%Y-%m-%d %H:%M:%S')
+                              time_diff = datetime.now() - scan_date
+                              if time_diff.days >= 30:
                                   response, i = vt_api_post(request_type="scan", file=file_path, cur_request=i)
-                          elif file_path in db and (datetime.now() - db[file_path]['scan_date']).days >= 30:
+                                  if file_path in db:
+                                      del(db[file_path])
+                              else:
+                                  if response.json()['positives'] > 0:
+                                      positives = "\033[91m" + str(response.json()['positives']) + "\033[0m"
+                                  else:
+                                      positives = "\033[93m" + str(response.json()['positives']) + "\033[0m"
+                                  print("File name: {0}{1}||  Positives: {2}".format(file, " "*(tab_buf-len(file)), positives))
+                                  positives = response.json()['positives']
+                                  db[file_path] = {'md5':file_md5, 'positives':positives, 'scan_date':scan_date}
+                          #If no 'positives' object in GET response, submit file for scan
+                          else:
                               response, i = vt_api_post(request_type="scan", file=file_path, cur_request=i)
+                      elif file_path in db and (datetime.now() - db[file_path]['scan_date']).days >= 30:
+                          response, i = vt_api_post(request_type="scan", file=file_path, cur_request=i)
+                          if file_path in db:
                               del(db[file_path])
-                          n += 1
+                      n += 1
         #Handle KeyboardInterrupt to ensure progress is saved to pickle database
         except KeyboardInterrupt:
             print("Keyboard Interrupt! Saving Database and exiting...")
