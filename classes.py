@@ -24,3 +24,5 @@ class ProgramGUI(tk.Frame):
         self.iterator_label.grid(row=1, column=0, padx=(10,10), sticky="w")
         self.file_label = tk.Label()
         self.file_label.grid(row=2, column=0, padx=(10, 10), sticky="w")
+        self.countdown_timer = tk.Label(fg="red")
+        self.countdown_timer.grid(row=3, column=0, padx=(10,10), sticky="w")

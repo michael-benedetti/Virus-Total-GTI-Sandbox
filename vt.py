@@ -10,7 +10,7 @@ import sys
 from classes import *
 from datetime import datetime
 
-apikey = ''  # Enter API Key Here
+apikey = '85b88295be77403cbfbd3c52114b9482ea31b0d3f84ed800115d37e775fb9e5e'  # Enter API Key Here
 
 
 def md5(fname):
@@ -27,7 +27,11 @@ def check_quota(n, gui):
     i = n
     if i == 4:
         i = 0
-        time.sleep(60)
+        for c in range(60):
+            gui.countdown_timer.configure(text="Pausing for {0} seconds".format(60-c))
+            gui.update()
+            time.sleep(1)
+        gui.countdown_timer.configure(text="")
     return i + 1
 
 
@@ -79,7 +83,6 @@ def run(window):
             # Recursively iterate through directories list
             for directory in directories:
                 for root, subdirs, files in os.walk(directory):
-                    # Filter out spotify for now as it will not submit successfully
                     for file in [file for file in files if file not in badfiles]:
                         file_path = os.path.join(root, file)
                         n += 1
