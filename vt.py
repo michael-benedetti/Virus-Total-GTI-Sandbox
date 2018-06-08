@@ -10,7 +10,8 @@ import sys
 from classes import *
 from datetime import datetime
 
-apikey = '85b88295be77403cbfbd3c52114b9482ea31b0d3f84ed800115d37e775fb9e5e'  # Enter API Key Here
+# virusTotal API Key
+apikey = ''
 
 
 def md5(fname):
@@ -57,6 +58,10 @@ def update_progress_bar(progress_bar):
 
 
 def run(window):
+    global apikey
+    apikey = window.api_var.get()
+    with open("vt.config", "w") as config:
+        config.write(apikey)
     window.progress_bar["value"] = 0
     # Define directories to scan and set counting and formatting variables
     directories = ["/bin", "/sbin", "/usr/bin", "/usr/sbin", "/usr/local/bin"]
@@ -146,6 +151,10 @@ def run(window):
 if __name__ == "__main__":
     # Initiate GUI
     window = ProgramGUI()
+    if os.path.exists("vt.config"):
+        with open("vt.config", "r") as config:
+            key = config.readline()
+            window.api_var.set(key)
     window.go_button.configure(command=lambda: run(window))
     window.mainloop()
     print("Done")
