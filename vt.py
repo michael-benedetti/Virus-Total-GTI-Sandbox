@@ -1,21 +1,28 @@
-# GUI Branch
-
 import requests
 import hashlib
 import os
 import time
-import pickle
+import json
 import ntpath
 import sys
 from classes import *
-from datetime import datetime
+from datetime import datetime, date
 
 # virusTotal API Key
 apikey = ''
 
 
+def json_serial(obj):
+    """JSON serializer for objects not serializable by default json code - credit jgbarah"""
+
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    raise TypeError ("Type %s not serializable" % type(obj))
+
+
 def md5(fname):
     """md5 hashing function"""
+
     hash_md5 = hashlib.md5()
     with open(fname, "rb") as f:
         for chunk in iter(lambda: f.read(4096), b""):
@@ -25,6 +32,7 @@ def md5(fname):
 
 def check_quota(n, gui):
     """check quota to ensure we don't break 4 requests/minute limitation"""
+
     i = n
     if i == 4:
         i = 0
@@ -38,6 +46,7 @@ def check_quota(n, gui):
 
 def vt_api_post(request_type="report", file=None, resource=None, cur_request=0, gui=None):
     """function for handling VirusTotal API requests"""
+
     tab_buf = 30
     i = check_quota(cur_request, gui)
     params = {'apikey': apikey}
@@ -54,10 +63,14 @@ def vt_api_post(request_type="report", file=None, resource=None, cur_request=0, 
 
 
 def update_progress_bar(progress_bar):
+    """Updates progress bar - what else would a function called 'update_progress_bar()' do?"""
+
     progress_bar["value"] += 1
 
 
 def run(window):
+    """Main function to be executed when 'Run Scan' button is pressed"""
+
     global apikey
     apikey = window.api_var.get()
     with open("vt.config", "w") as config:
@@ -67,17 +80,17 @@ def run(window):
     directories = ["/bin", "/sbin", "/usr/bin", "/usr/sbin", "/usr/local/bin"]
     tab_buf = 30
     n = i = 0
-    badfiles = ['spotify', '27850']  # Some files don't submit correctly to VirusTotal - include here to skip submission
-
+    # Some files don't submit correctly to VirusTotal - include here to skip submission
+    badfiles = ['spotify', '27850', 'zoom']
     # Check for existance of db.pkl and create if non-existent
-    if not os.path.exists('db.pkl'):
-        with open('db.pkl', 'wb') as pkl_file:
-            empty_pkl = {'_init_pkl': {'resource': 0, 'positives': 0}}
-            pickle.dump(empty_pkl, pkl_file)
+    if not os.path.exists('db.json'):
+        with open('db.json', 'w') as json_file:
+            empty_json = {'_init_json': {'resource': 0, 'positives': 0}}
+            json.dump(empty_json, json_file)
 
     # Load pickle database
-    with open('db.pkl', 'rb') as pkl_file:
-        db = pickle.load(pkl_file)
+    with open('db.json', 'r') as json_file:
+        db = json.load(json_file)
         try:
             max_value = 0
             for directory in directories:
@@ -110,7 +123,8 @@ def run(window):
                                 scan_date = datetime.strptime(response.json()['scan_date'], '%Y-%m-%d %H:%M:%S')
                                 time_diff = datetime.now() - scan_date
                                 if time_diff.days >= 30:
-                                    response, i = vt_api_post(request_type="scan", file=file_path, cur_request=i, gui=window)
+                                    response, i = vt_api_post(request_type="scan", file=file_path,
+                                                              cur_request=i, gui=window)
                                     if file_path in db:
                                         del(db[file_path])
                                 else:
@@ -125,8 +139,11 @@ def run(window):
                                     db[file_path] = {'md5': file_md5, 'positives': positives, 'scan_date': scan_date}
                             # If no 'positives' object in GET response, submit file for scan
                             else:
-                                response, i = vt_api_post(request_type="scan", file=file_path, cur_request=i, gui=window)
-                        elif file_path in db and (datetime.now() - db[file_path]['scan_date']).days >= 30:
+                                response, i = vt_api_post(request_type="scan", file=file_path,
+                                                          cur_request=i, gui=window)
+                        # Check to see if last scan was over 30 days ago.  Handle JSON date for comparison.
+                        elif file_path in db and (datetime.now() - datetime.strptime(db[file_path]['scan_date'],
+                                                                                     '%Y-%m-%dT%H:%M:%S')).days >= 30:
                             response, i = vt_api_post(request_type="scan", file=file_path, cur_request=i, gui=window)
                             if file_path in db:
                                 del(db[file_path])
@@ -135,8 +152,8 @@ def run(window):
             print("Keyboard Interrupt! Saving Database and exiting...")
 
     # Save dictionary to pickle database
-    with open('db.pkl', 'wb') as pkl_file:
-        pickle.dump(db, pkl_file)
+    with open('db.json', 'w') as json_file:
+        json.dump(db, json_file, default=json_serial)
 
     # Print summary
     print("\n\033[92mFiles with detections:")
